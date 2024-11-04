@@ -3,11 +3,12 @@ document.addEventListener('DOMContentLoaded', () => {
   const csvContentDiv = document.getElementById('csvContent');
   const convertButton = document.getElementById('convertButton');
   const jsonOutputPre = document.getElementById('jsonOutput');
+  const copyJsonButton = document.getElementById('copyJsonButton');
   const propertySelectionDiv = document.getElementById('propertySelection');
   const roleSpecificationDiv = document.getElementById('roleSpecification');
   const addRoleButton = document.getElementById('addRoleButton');
-  const teamSizeInput = document.getElementById('teamSize');
   const matchButton = document.getElementById('matchButton');
+  const reshuffleButton = document.getElementById('reshuffleButton');
   const resultsDiv = document.getElementById('results');
 
   let csvContent = '';
@@ -35,14 +36,10 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function shuffleArray(array) {
-      const arrayDuplicate = [...array];
-
-      for (let i = arrayDuplicate.length - 1; i > 0; i--) {
+      for (let i = array.length - 1; i > 0; i--) {
           const j = Math.floor(Math.random() * (i + 1));
-          [arrayDuplicate[i], arrayDuplicate[j]] = [arrayDuplicate[j], arrayDuplicate[i]];
+          [array[i], array[j]] = [array[j], array[i]];
       }
-
-      return arrayDuplicate
   }
 
   function assignRole(student, properties) {
@@ -58,12 +55,11 @@ document.addEventListener('DOMContentLoaded', () => {
       return role;
   }
 
-  function groupStudents(students, teamSize, properties, roleReqs) {
-      console.log('starting ===> ', students)
-      // Assign roles and calculate scores
+  function groupStudents(students, roleReqs) {
+      // Assign initial roles and calculate scores
       students.forEach(student => {
-          student.role = assignRole(student, properties);
-          student.score = properties.reduce((score, prop) => {
+          student.role = assignRole(student, selectedProperties);
+          student.score = selectedProperties.reduce((score, prop) => {
               const value = parseFloat(student[prop]);
               return score + (isNaN(value) ? 0 : value);
           }, 0);
@@ -72,36 +68,44 @@ document.addEventListener('DOMContentLoaded', () => {
       // Sort students by score in descending order
       students.sort((a, b) => b.score - a.score);
 
-      const teams = [];
-      const numTeams = Math.ceil(students.length / teamSize);
+      const totalStudentsPerTeam = roleReqs.reduce((sum, req) => sum + req.count, 0);
+      const numTeams = Math.floor(students.length / totalStudentsPerTeam);
 
-      // Create teams with role requirements
-      for (let i = 0; i < numTeams; i++) {
-          teams.push({ members: [], roles: {} });
-          roleReqs.forEach(req => {
-              teams[i].roles[req.role] = req.count;
-          });
-      }
+      // Initialize teams
+      const teams = Array.from({ length: numTeams }, () => ({
+          members: [],
+          roles: roleReqs.reduce((acc, req) => ({ ...acc, [req.role]: req.count }), {})
+      }));
 
-      // Distribute students to teams based on roles
+      // First pass: Assign students to their best-fit roles
       students.forEach(student => {
-          let placed = false;
-          for (let i = 0; i < teams.length && !placed; i++) {
-              if (teams[i].roles[student.role] > 0) {
-                  teams[i].members.push(student);
-                  teams[i].roles[student.role]--;
-                  placed = true;
-              }
-          }
-          if (!placed) {
-              // If no team needs this role, place in the team with the least members
-              const teamIndex = teams.reduce((minIndex, team, index, arr) => 
-                  team.members.length < arr[minIndex].members.length ? index : minIndex, 0);
+          const teamIndex = teams.findIndex(team => team.roles[student.role] > 0);
+          if (teamIndex !== -1) {
               teams[teamIndex].members.push(student);
+              teams[teamIndex].roles[student.role]--;
           }
       });
 
-      console.log("ending =====> ", {students, teams})
+      // Second pass: Assign remaining students to any available role
+      students.filter(student => !teams.some(team => team.members.includes(student))).forEach(student => {
+          for (let i = 0; i < teams.length; i++) {
+              const availableRole = Object.keys(teams[i].roles).find(role => teams[i].roles[role] > 0);
+              if (availableRole) {
+                  student.role = availableRole;
+                  teams[i].members.push(student);
+                  teams[i].roles[availableRole]--;
+                  break;
+              }
+          }
+      });
+
+      // Final pass: Distribute any unassigned students
+      const unassignedStudents = students.filter(student => !teams.some(team => team.members.includes(student)));
+      unassignedStudents.forEach(student => {
+          const teamIndex = teams.reduce((minIndex, team, index, arr) => 
+              team.members.length < arr[minIndex].members.length ? index : minIndex, 0);
+          teams[teamIndex].members.push(student);
+      });
 
       return teams;
   }
@@ -112,12 +116,31 @@ document.addEventListener('DOMContentLoaded', () => {
           const teamDiv = document.createElement('div');
           teamDiv.innerHTML = `<h4>Team ${index + 1}</h4>`;
           const ul = document.createElement('ul');
-          team.members.forEach(student => {
-              const li = document.createElement('li');
-              const propertyInfo = selectedProperties.map(prop => `${prop}: ${student[prop]}`).join(', ');
-              li.textContent = `${student.Name} (Role: ${student.role}) - ${propertyInfo}`;
-              ul.appendChild(li);
+          
+          // Group members by role
+          const roleGroups = team.members.reduce((groups, member) => {
+              if (!groups[member.role]) {
+                  groups[member.role] = [];
+              }
+              groups[member.role].push(member);
+              return groups;
+          }, {});
+
+          // Display members grouped by role
+          Object.entries(roleGroups).forEach(([role, members]) => {
+              const roleLi = document.createElement('li');
+              roleLi.innerHTML = `<strong>${role} (${members.length}):</strong>`;
+              const memberUl = document.createElement('ul');
+              members.forEach(student => {
+                  const memberLi = document.createElement('li');
+                  const propertyInfo = selectedProperties.map(prop => `${prop}: ${student[prop]}`).join(', ');
+                  memberLi.textContent = `${student.name} - ${propertyInfo}`;
+                  memberUl.appendChild(memberLi);
+              });
+              roleLi.appendChild(memberUl);
+              ul.appendChild(roleLi);
           });
+
           teamDiv.appendChild(ul);
           resultsDiv.appendChild(teamDiv);
       });
@@ -144,19 +167,42 @@ document.addEventListener('DOMContentLoaded', () => {
       });
   }
 
+  function createRoleDropdown() {
+      const select = document.createElement('select');
+      select.setAttribute('aria-label', 'Role name');
+      headers.forEach(header => {
+          if (header !== 'name') {
+              const option = document.createElement('option');
+              option.value = header;
+              option.textContent = header;
+              select.appendChild(option);
+          }
+      });
+      return select;
+  }
+
   function addRoleInput() {
       const roleInput = document.createElement('div');
       roleInput.className = 'role-input';
-      roleInput.innerHTML = `
-          <input type="text" placeholder="Role name" aria-label="Role name">
-          <input type="number" min="1" value="1" aria-label="Number of students for this role">
-          <button type="button" class="remove-role">Remove</button>
-      `;
-      roleSpecificationDiv.appendChild(roleInput);
+      const roleDropdown = createRoleDropdown();
+      roleInput.appendChild(roleDropdown);
+      
+      const countInput = document.createElement('input');
+      countInput.type = 'number';
+      countInput.min = '1';
+      countInput.value = '1';
+      countInput.setAttribute('aria-label', 'Number of students for this role');
+      roleInput.appendChild(countInput);
 
-      roleInput.querySelector('.remove-role').addEventListener('click', () => {
+      const removeButton = document.createElement('button');
+      removeButton.textContent = 'Remove';
+      removeButton.className = 'remove-role';
+      removeButton.addEventListener('click', () => {
           roleSpecificationDiv.removeChild(roleInput);
       });
+      roleInput.appendChild(removeButton);
+
+      roleSpecificationDiv.appendChild(roleInput);
   }
 
   csvFileInput.addEventListener('change', (event) => {
@@ -177,6 +223,15 @@ document.addEventListener('DOMContentLoaded', () => {
       jsonOutputPre.textContent = JSON.stringify(studentsData, null, 2);
       createPropertyCheckboxes();
       matchButton.disabled = false;
+      copyJsonButton.disabled = false;
+  });
+
+  copyJsonButton.addEventListener('click', () => {
+      navigator.clipboard.writeText(jsonOutputPre.textContent).then(() => {
+          alert('JSON copied to clipboard!');
+      }).catch(err => {
+          console.error('Failed to copy JSON: ', err);
+      });
   });
 
   addRoleButton.addEventListener('click', addRoleInput);
@@ -187,12 +242,6 @@ document.addEventListener('DOMContentLoaded', () => {
           return;
       }
 
-      const teamSize = parseInt(teamSizeInput.value, 10);
-      if (isNaN(teamSize) || teamSize < 2) {
-          alert('Please enter a valid team size (minimum 2).');
-          return;
-      }
-
       selectedProperties = Array.from(propertySelectionDiv.querySelectorAll('input[type="checkbox"]:checked')).map(cb => cb.value);
       if (selectedProperties.length === 0) {
           alert('Please select at least one property for grouping.');
@@ -200,7 +249,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       roleRequirements = Array.from(roleSpecificationDiv.querySelectorAll('.role-input')).map(input => ({
-          role: input.querySelector('input[type="text"]').value,
+          role: input.querySelector('select').value,
           count: parseInt(input.querySelector('input[type="number"]').value, 10)
       })).filter(req => req.role && !isNaN(req.count));
 
@@ -208,9 +257,15 @@ document.addEventListener('DOMContentLoaded', () => {
           alert('Please specify at least one role requirement.');
           return;
       }
-      const shuffledStudentsData = shuffleArray(studentsData);
 
-      const teams = groupStudents(shuffledStudentsData, teamSize, selectedProperties, roleRequirements);
+      const teams = groupStudents(studentsData, roleRequirements);
+      displayResults(teams);
+      reshuffleButton.disabled = false;
+  });
+
+  reshuffleButton.addEventListener('click', () => {
+      shuffleArray(studentsData);
+      const teams = groupStudents(studentsData, roleRequirements);
       displayResults(teams);
   });
 });

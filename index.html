@@ -1,12 +1,12 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Vite + TS</title>
-  </head>
-  <body>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Team Matcher</title>
+    <link rel="stylesheet" href="./src/style.css">
+</head>
+<body>
     <h1>Student Team Matcher</h1>
     
     <div class="step">
@@ -19,6 +19,7 @@
         <h2>Step 2: Convert CSV to JSON</h2>
         <button id="convertButton" disabled>Convert to JSON</button>
         <pre id="jsonOutput"></pre>
+        <button id="copyJsonButton" class="copy-button">Copy JSON</button>
     </div>
 
     <div class="step">
@@ -34,11 +35,11 @@
 
     <div class="step">
         <h2>Step 5: Group Students</h2>
-        <label for="teamSize">Team Size:</label>
-        <input type="number" id="teamSize" min="2" value="3">
         <button id="matchButton" disabled>Match Teams</button>
+        <button id="reshuffleButton" disabled>Reshuffle Teams</button>
         <div id="results"></div>
     </div>
-    <script type="module" src="/src/main.ts"></script>
-  </body>
+
+    <script src="./src/main.ts"></script>
+</body>
 </html>

@@ -11,20 +11,43 @@ document.addEventListener('DOMContentLoaded', () => {
   const reshuffleButton = document.getElementById('reshuffleButton');
   const resultsDiv = document.getElementById('results');
 
-  let csvContent = '';
-  let studentsData = [];
-  let headers = [];
-  let selectedProperties = [];
-  let roleRequirements = [];
+  interface student {
+    ["ID"]: string;
+    ["Start time"]: string;
+    ["Completion time"]: string;
+    ["Email"]: string;
+    ["Name"]: string;
+    ["Last modified time"]: string;
+    ["Your name"]: string;
+    ["Your GitHub username"]: string;
+    ["Scrum Master"]: string;
+    ["Quality Assurance"]: string;
+    ["Developer"]: string;
+    ["I understand that I will be working as part of a team on a real application project and agree to communicate fairly and professionally with colleagues."]: string;
+    role?: string;
+    score?: number;
+}
 
-  function csvToJSON(csv) {
+
+interface Rolerequirement {
+  role: string;
+  count: number
+}
+
+  let csvContent: string = '';
+  let studentsData: student[] = [];
+  let headers: string[] = [];
+  let selectedProperties: string[] = [];
+  let roleRequirements: string[] = [];
+
+  function csvToJSON(csv: string) : Record<string, string>[] {
       const lines = csv.split('\n');
       const result = [];
       headers = lines[0].split(',').map(header => header.trim());
-
+    debugger;
       for (let i = 1; i < lines.length; i++) {
           if (!lines[i]) continue;
-          const obj = {};
+          const obj: Record<string, string> = {};
           const currentline = lines[i].split(',');
 
           for (let j = 0; j < headers.length; j++) {
@@ -35,16 +58,17 @@ document.addEventListener('DOMContentLoaded', () => {
       return result;
   }
 
-  function shuffleArray(array) {
+  function shuffleArray(array: student[]) : student[] {
       for (let i = array.length - 1; i > 0; i--) {
           const j = Math.floor(Math.random() * (i + 1));
           [array[i], array[j]] = [array[j], array[i]];
       }
+      return array;
   }
 
-  function assignRole(student, properties) {
+  function assignRole(student: student, properties: (keyof student)[]) : string {
       let maxValue = -Infinity;
-      let role = '';
+      let role: string = '';
       properties.forEach(prop => {
           const value = parseFloat(student[prop]);
           if (!isNaN(value) && value > maxValue) {
@@ -55,7 +79,9 @@ document.addEventListener('DOMContentLoaded', () => {
       return role;
   }
 
-  function groupStudents(students, roleReqs) {
+  
+
+  function groupStudents(students: student[], roleReqs: Rolerequirement[]) : student[][] {
       // Assign initial roles and calculate scores
       students.forEach(student => {
           student.role = assignRole(student, selectedProperties);
@@ -69,22 +95,23 @@ document.addEventListener('DOMContentLoaded', () => {
       students.sort((a, b) => b.score - a.score);
 
       const totalStudentsPerTeam = roleReqs.reduce((sum, req) => sum + req.count, 0);
-      const numTeams = Math.floor(students.length / totalStudentsPerTeam);
+      const numTeams = Math.ceil(students.length / totalStudentsPerTeam);
 
       // Initialize teams
       const teams = Array.from({ length: numTeams }, () => ({
           members: [],
           roles: roleReqs.reduce((acc, req) => ({ ...acc, [req.role]: req.count }), {})
       }));
-
+      
       // First pass: Assign students to their best-fit roles
       students.forEach(student => {
-          const teamIndex = teams.findIndex(team => team.roles[student.role] > 0);
+        const teamIndex = teams.findIndex(team => team.roles[student.role || ''] > 0);
           if (teamIndex !== -1) {
-              teams[teamIndex].members.push(student);
-              teams[teamIndex].roles[student.role]--;
+            teams[teamIndex].members.push(student);
+            teams[teamIndex].roles[student.role]--;
           }
-      });
+        });
+        debugger;
 
       // Second pass: Assign remaining students to any available role
       students.filter(student => !teams.some(team => team.members.includes(student))).forEach(student => {
@@ -134,7 +161,7 @@ document.addEventListener('DOMContentLoaded', () => {
               members.forEach(student => {
                   const memberLi = document.createElement('li');
                   const propertyInfo = selectedProperties.map(prop => `${prop}: ${student[prop]}`).join(', ');
-                  memberLi.textContent = `${student.name} - ${propertyInfo}`;
+                  memberLi.textContent = `${student.Name} - ${propertyInfo}`;
                   memberUl.appendChild(memberLi);
               });
               roleLi.appendChild(memberUl);
@@ -170,6 +197,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function createRoleDropdown() {
       const select = document.createElement('select');
       select.setAttribute('aria-label', 'Role name');
+      select.setAttribute('style', 'width: 200px');
       headers.forEach(header => {
           if (header !== 'name') {
               const option = document.createElement('option');
@@ -211,6 +239,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       reader.onload = (e) => {
           csvContent = e.target.result;
+          csvContentDiv?.setAttribute('style', 'max-height: 500px; overflow:auto')
           csvContentDiv.innerHTML = '<h3>CSV Content:</h3><pre>' + csvContent + '</pre>';
           convertButton.disabled = false;
       };
@@ -220,19 +249,28 @@ document.addEventListener('DOMContentLoaded', () => {
 
   convertButton.addEventListener('click', () => {
       studentsData = csvToJSON(csvContent);
+      jsonOutputPre?.setAttribute('style', 'height: 500px; overflow: auto')
       jsonOutputPre.textContent = JSON.stringify(studentsData, null, 2);
       createPropertyCheckboxes();
       matchButton.disabled = false;
       copyJsonButton.disabled = false;
   });
 
-  copyJsonButton.addEventListener('click', () => {
-      navigator.clipboard.writeText(jsonOutputPre.textContent).then(() => {
-          alert('JSON copied to clipboard!');
-      }).catch(err => {
-          console.error('Failed to copy JSON: ', err);
-      });
-  });
+
+  function copyToClipboard(btn, container) {
+    return btn.addEventListener("click", () => {
+      navigator.clipboard
+        .writeText(container.outerHTML)
+        .then(() => {
+          alert("JSON copied to clipboard!");
+        })
+        .catch((err) => {
+          console.error("Failed to copy JSON: ", err);
+        });
+    });
+  }
+
+  copyToClipboard(copyJsonButton, jsonOutputPre)
 
   addRoleButton.addEventListener('click', addRoleInput);
 

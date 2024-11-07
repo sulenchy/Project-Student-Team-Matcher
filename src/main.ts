@@ -1,4 +1,4 @@
-document.addEventListener('DOMContentLoaded', () => {
+
   const csvFileInput = document.getElementById('csvFile');
   const csvContentDiv = document.getElementById('csvContent');
   const convertButton = document.getElementById('convertButton');
@@ -44,7 +44,6 @@ interface Rolerequirement {
       const lines = csv.split('\n');
       const result = [];
       headers = lines[0].split(',').map(header => header.trim());
-    debugger;
       for (let i = 1; i < lines.length; i++) {
           if (!lines[i]) continue;
           const obj: Record<string, string> = {};
@@ -81,7 +80,7 @@ interface Rolerequirement {
 
   
 
-  function groupStudents(students: student[], roleReqs: Rolerequirement[]) : student[][] {
+  function groupStudents(students: student[], roleReqs: Rolerequirement[]) : Record<student[], Rolerequirement>[] {
       // Assign initial roles and calculate scores
       students.forEach(student => {
           student.role = assignRole(student, selectedProperties);
@@ -111,7 +110,6 @@ interface Rolerequirement {
             teams[teamIndex].roles[student.role]--;
           }
         });
-        debugger;
 
       // Second pass: Assign remaining students to any available role
       students.filter(student => !teams.some(team => team.members.includes(student))).forEach(student => {
@@ -133,7 +131,6 @@ interface Rolerequirement {
               team.members.length < arr[minIndex].members.length ? index : minIndex, 0);
           teams[teamIndex].members.push(student);
       });
-
       return teams;
   }
 
@@ -233,7 +230,7 @@ interface Rolerequirement {
       roleSpecificationDiv.appendChild(roleInput);
   }
 
-  csvFileInput.addEventListener('change', (event) => {
+  if (csvFileInput) csvFileInput.addEventListener('change', (event) => {
       const file = event.target.files[0];
       const reader = new FileReader();
 
@@ -247,34 +244,41 @@ interface Rolerequirement {
       reader.readAsText(file);
   });
 
-  convertButton.addEventListener('click', () => {
-      studentsData = csvToJSON(csvContent);
-      jsonOutputPre?.setAttribute('style', 'height: 500px; overflow: auto')
-      jsonOutputPre.textContent = JSON.stringify(studentsData, null, 2);
-      createPropertyCheckboxes();
-      matchButton.disabled = false;
-      copyJsonButton.disabled = false;
-  });
-
-
-  function copyToClipboard(btn, container) {
-    return btn.addEventListener("click", () => {
-      navigator.clipboard
-        .writeText(container.outerHTML)
-        .then(() => {
-          alert("JSON copied to clipboard!");
-        })
-        .catch((err) => {
-          console.error("Failed to copy JSON: ", err);
-        });
+  if (convertButton) {
+    convertButton.addEventListener('click', () => {
+        studentsData = csvToJSON(csvContent);
+        jsonOutputPre?.setAttribute('style', 'height: 500px; overflow: auto')
+        jsonOutputPre.textContent = JSON.stringify(studentsData, null, 2);
+        createPropertyCheckboxes();
+        matchButton.disabled = false;
+        copyJsonButton.disabled = false;
+        reshuffleButton.disabled = false;
     });
   }
 
-  copyToClipboard(copyJsonButton, jsonOutputPre)
 
-  addRoleButton.addEventListener('click', addRoleInput);
+  function copyToClipboard({btn, container}: {btn: HTMLElement | null, container: HTMLElement | null}): void {
+    if (btn && container) {
+      btn.addEventListener("click", () => {
+        navigator.clipboard
+          .writeText(container.innerText)
+          .then(() => {
+            alert("JSON copied to clipboard!");
+          })
+          .catch((err) => {
+            console.error("Failed to copy JSON: ", err);
+          });
+      });
+    } else {
+      console.error('Error due to invalid an element. Failed to copy JSON')
+    }
+  }
 
-  matchButton.addEventListener('click', () => {
+  copyToClipboard({btn: copyJsonButton, container: jsonOutputPre})
+
+  if(addRoleButton) addRoleButton.addEventListener('click', addRoleInput);
+
+  if (matchButton) matchButton.addEventListener('click', () => {
       if (studentsData.length === 0) {
           alert('Please convert CSV to JSON first.');
           return;
@@ -302,8 +306,8 @@ interface Rolerequirement {
   });
 
   reshuffleButton.addEventListener('click', () => {
-      shuffleArray(studentsData);
-      const teams = groupStudents(studentsData, roleRequirements);
-      displayResults(teams);
+      const reshuffledData = shuffleArray(studentsData);
+      jsonOutputPre?.setAttribute('style', 'height: 500px; overflow: auto')
+      jsonOutputPre.textContent = JSON.stringify(reshuffledData, null, 2);
   });
-});
+

@@ -5,9 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Student Team Matcher</title>
     <link rel="stylesheet" href="./src/style.css">
+    <script src="./src/main.ts" defer></script>
 </head>
 <body>
-    <h1>Agency Student Team Matcher</h1>
+    <h1>Agency Project Student Team Matcher</h1>
     
     <div class="step">
         <h2>Step 1: Upload CSV</h2>
@@ -18,6 +19,7 @@
     <div class="step">
         <h2>Step 2: Convert CSV to JSON</h2>
         <button id="convertButton" disabled>Convert to JSON</button>
+        <button id="reshuffleButton" disabled>Reshuffle Teams</button>
         <pre id="jsonOutput"></pre>
         <button id="copyJsonButton" class="copy-button">Copy JSON</button>
     </div>
@@ -36,9 +38,7 @@
     <div class="step">
         <h2>Step 5: Group Students</h2>
         <button id="matchButton" disabled>Match Teams</button>
-        <button id="reshuffleButton" disabled>Reshuffle Teams</button>
         <div id="results"></div>
     </div>
-    <script src="./src/main.ts"></script>
 </body>
 </html>

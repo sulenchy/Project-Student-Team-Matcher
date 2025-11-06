@@ -1,35 +1,184 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap');
+
+:root {
+  --primary-color: #4a90e2;
+  --secondary-color: #f5a623;
+  --background-color: #f7f9fb;
+  --text-color: #333;
+  --white-color: #fff;
+  --border-color: #ddd;
+  --box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  --gap: 16px;
+}
+
 body {
-  font-family: Arial, sans-serif;
-  max-width: 800px;
+  font-family: 'Poppins', sans-serif;
+  background-color: var(--background-color);
+  color: var(--text-color);
+  margin: 0;
+  padding: 0;
+}
+
+.container {
+  max-width: 1200px;
   margin: 0 auto;
-  padding: 20px;
+  padding: 2rem;
 }
+
+header h1 {
+  text-align: center;
+  color: var(--primary-color);
+  margin-bottom: 2rem;
+}
+
+
+
 .step {
-  margin-bottom: 20px;
-  padding: 10px;
-  border: 1px solid #ccc;
-  border-radius: 5px;
+  background-color: var(--white-color);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 1.5rem;
+  box-shadow: var(--box-shadow);
+  transition: box-shadow 0.3s ease;
+  display: none;
 }
+
+.step:hover {
+  box-shadow: 0 6px 10px rgba(0, 0, 0, 0.15);
+}
+
 .step h2 {
   margin-top: 0;
+  color: var(--primary-color);
+  border-bottom: 2px solid var(--secondary-color);
+  padding-bottom: 0.5rem;
+  margin-bottom: 1.5rem;
 }
-pre {
-  background-color: #f4f4f4;
+
+input[type="file"] {
+  width: 100%;
   padding: 10px;
+  border: 2px dashed var(--border-color);
+  border-radius: 5px;
+  cursor: pointer;
+  transition: border-color 0.3s ease;
+}
+
+input[type="file"]:hover {
+  border-color: var(--primary-color);
+}
+
+button {
+  background-color: var(--primary-color);
+  color: var(--white-color);
+  border: none;
+  padding: 12px 20px;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: 500;
+  transition: background-color 0.3s ease, transform 0.2s ease;
+}
+
+button:hover:not(:disabled) {
+  background-color: #357abd;
+  transform: translateY(-2px);
+}
+
+button:disabled {
+  background-color: #a0c7e8;
+  cursor: not-allowed;
+}
+
+#copyJsonButton,
+#addRoleButton {
+  background-color: var(--secondary-color);
+}
+
+#copyJsonButton:hover:not(:disabled),
+#addRoleButton:hover:not(:disabled) {
+  background-color: #d98e0d;
+}
+
+pre {
+  background-color: #f0f4f8;
+  padding: 1rem;
   border-radius: 5px;
   overflow-x: auto;
+  border: 1px solid var(--border-color);
 }
-#results {
-  margin-top: 20px;
+
+#propertySelection,
+#roleSpecification {
+  margin-top: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
 }
-#propertySelection, #roleSpecification {
-  margin-top: 10px;
-}
+
 .role-input {
   display: flex;
   align-items: center;
-  margin-bottom: 5px;
+  gap: 10px;
+  margin-bottom: 0.5rem;
 }
+
 .role-input input {
-  margin-right: 5px;
+  padding: 8px;
+  border: 1px solid var(--border-color);
+  border-radius: 5px;
+  flex-grow: 1;
+}
+
+#results {
+  margin-top: 1.5rem;
+  padding: 1rem;
+  background-color: var(--white-color);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  box-shadow: var(--box-shadow);
+}
+
+footer {
+  text-align: center;
+  margin-top: 2rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-color);
+  color: #777;
+}
+
+/* Grid laid out in a single row (columns) */
+.row-grid {
+  display: grid;
+  gap: var(--gap);
+  grid-auto-flow: column;
+  grid-auto-columns: 100%;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 8px;
+}
+
+.active {
+  display: block;
+}
+
+.navigation-buttons {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 1rem; max-width: 400px; margin: 2rem auto;
+}
+
+.invisible {
+    display: none;
+}
+
+
+@media (max-width: 768px) {
+  .container {
+    padding: 1rem;
+  }
+
+  header h1 {
+    font-size: 1.5rem;
+  }
 }

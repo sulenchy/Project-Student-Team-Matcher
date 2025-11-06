@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,38 +8,57 @@
     <link rel="stylesheet" href="./src/style.css">
     <script src="./src/main.ts" defer></script>
 </head>
+
 <body>
-    <h1>Agency Project Student Team Matcher</h1>
-    
-    <div class="step">
-        <h2>Step 1: Upload CSV</h2>
-        <input type="file" id="csvFile" accept=".csv" aria-label="csv ipload">
-        <div id="csvContent"></div>
-    </div>
+    <div class="container">
+        <header>
+            <h1>Agency Project Student Team Matcher</h1>
+        </header>
 
-    <div class="step">
-        <h2>Step 2: Convert CSV to JSON</h2>
-        <button id="convertButton" disabled>Convert to JSON</button>
-        <button id="reshuffleButton" disabled>Reshuffle Teams</button>
-        <pre id="jsonOutput"></pre>
-        <button id="copyJsonButton" class="copy-button">Copy JSON</button>
-    </div>
+        <main class="main-content">
+            <div class="row-grid" id="grid">
+                <div class="step active">
+                    <h2>Step 1: Upload CSV</h2>
+                    <input type="file" id="csvFile" accept=".csv" aria-label="csv upload">
+                    <div id="csvContent"></div>
+                </div>
 
-    <div class="step">
-        <h2>Step 3: Select Grouping Properties</h2>
-        <div id="propertySelection"></div>
-    </div>
+                <div class="step">
+                    <h2>Step 2: Convert CSV to JSON</h2>
+                    <button id="convertButton" disabled>Convert to JSON</button>
+                    <button id="reshuffleButton" disabled>Reshuffle Teams</button>
+                    <pre id="jsonOutput"></pre>
+                    <button id="copyJsonButton" class="copy-button" disabled>Copy JSON</button>
+                </div>
 
-    <div class="step">
-        <h2>Step 4: Specify Roles per Team</h2>
-        <div id="roleSpecification"></div>
-        <button id="addRoleButton">Add Role</button>
-    </div>
+                <div class="step">
+                    <h2>Step 3: Select Grouping Properties</h2>
+                    <div id="propertySelection"></div>
+                </div>
 
-    <div class="step">
-        <h2>Step 5: Group Students</h2>
-        <button id="matchButton" disabled>Match Teams</button>
-        <div id="results"></div>
+                <div class="step">
+                    <h2>Step 4: Specify Roles per Team</h2>
+                    <div id="roleSpecification"></div>
+                    <button id="addRoleButton">Add Role</button>
+                </div>
+
+                <div class="step">
+                    <h2>Step 5: Group Students</h2>
+                    <button id="matchButton" disabled>Match Teams</button>
+                    <div id="results"></div>
+                </div>
+
+            </div>
+            <div class="navigation-buttons">
+                <button id="prevButton" aria-label="Prev Step">Prev Step</button>
+                <button id="nextButton" aria-label="Next Step">Next Step</button>
+            </div>
+        </main>
+
+        <footer>
+            <p>&copy; 2025 Student Team Matcher</p>
+        </footer>
     </div>
 </body>
+
 </html>

@@ -7,7 +7,7 @@ const propertySelectionDiv = document.getElementById("propertySelection");
 const roleSpecificationDiv = document.getElementById("roleSpecification");
 const addRoleButton = document.getElementById("addRoleButton");
 const matchButton = document.getElementById("matchButton");
-const reshuffleButton = document.getElementById("reshuffleButton");
+const reshuffleButton = document.getElementById("reshuffleButton") as HTMLButtonElement | null;
 const resultsDiv = document.getElementById("results");
 
 interface student {
@@ -25,6 +25,8 @@ interface student {
   ["I understand that I will be working as part of a team on a real application project and agree to communicate fairly and professionally with colleagues."]: string;
   role?: string;
   score?: number;
+  preferences?: string[];
+  [key: string]: string | number | string[] | undefined;
 }
 
 interface Rolerequirement {
@@ -32,11 +34,16 @@ interface Rolerequirement {
   count: number;
 }
 
+interface Team {
+  members: student[];
+  roles: Record<string, number>;
+}
+
 let csvContent: string = "";
 let studentsData: student[] = [];
 let headers: string[] = [];
 let selectedProperties: string[] = [];
-let roleRequirements: string[] = [];
+let roleRequirements: Rolerequirement[] = [];
 
 function csvToJSON(csv: string): Record<string, string>[] {
   const lines = csv.split("\n");
@@ -63,34 +70,34 @@ function shuffleArray(array: student[]): student[] {
   return array;
 }
 
-function assignRole(student: student, properties: (keyof student)[]): string {
-  let maxValue = -Infinity;
-  let role: string = "";
-  properties.forEach((prop) => {
-    const value = parseFloat(student[prop]);
-    if (!isNaN(value) && value > maxValue) {
-      maxValue = value;
-      role = prop;
-    }
-  });
-  return role;
+function getRolePreferences(
+  student: student,
+  properties: (keyof student)[]
+): string[] {
+  return properties
+    .map((prop) => ({
+      role: prop as string,
+      score: parseFloat(String(student[prop] ?? "0")),
+    }))
+    .sort((a, b) => b.score - a.score)
+    .map((item) => item.role);
 }
 
 function groupStudents(
   students: student[],
   roleReqs: Rolerequirement[]
-): Record<student[], Rolerequirement>[] {
-  // Assign initial roles and calculate scores
+): Team[] {
+  // Assign preferences and calculate scores
   students.forEach((student) => {
-    student.role = assignRole(student, selectedProperties);
+    student.preferences = getRolePreferences(student, selectedProperties as (keyof student)[]);
     student.score = selectedProperties.reduce((score, prop) => {
-      const value = parseFloat(student[prop]);
+      const value = parseFloat(String(student[prop] ?? "0"));
       return score + (isNaN(value) ? 0 : value);
     }, 0);
   });
 
   // Sort students by score in descending order
-  students.sort((a, b) => b.score - a.score);
+  students.sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
 
   const totalStudentsPerTeam = roleReqs.reduce(
     (sum, req) => sum + req.count,
@@ -99,7 +106,7 @@ function groupStudents(
   const numTeams = Math.ceil(students.length / totalStudentsPerTeam);
 
   // Initialize teams
-  const teams = Array.from({ length: numTeams }, () => ({
+  const teams: Team[] = Array.from({ length: numTeams }, () => ({
     members: [],
     roles: roleReqs.reduce(
       (acc, req) => ({ ...acc, [req.role]: req.count }),
@@ -107,50 +114,83 @@ function groupStudents(
     ),
   }));
 
-  // First pass: Assign students to their best-fit roles
+  const unassignedStudents: student[] = [];
+
+  // First pass: Assign students to their first preference
   students.forEach((student) => {
-    const teamIndex = teams.findIndex(
-      (team) => team.roles[student.role || ""] > 0
-    );
-    if (teamIndex !== -1) {
-      teams[teamIndex].members.push(student);
-      teams[teamIndex].roles[student.role]--;
+    const firstPreference = student.preferences?.[0];
+    if (firstPreference) {
+      const teamIndex = teams.findIndex(
+        (team) => (team.roles[firstPreference] ?? 0) > 0
+      );
+      if (teamIndex !== -1) {
+        student.role = firstPreference;
+        teams[teamIndex].members.push(student);
+        teams[teamIndex].roles[firstPreference]--;
+      } else {
+        unassignedStudents.push(student);
+      }
+    } else {
+      // No preferences available — keep student in unassigned list for later distribution
+      unassignedStudents.push(student);
     }
   });
 
-  // Second pass: Assign remaining students to any available role
-  students
-    .filter((student) => !teams.some((team) => team.members.includes(student)))
-    .forEach((student) => {
-      for (let i = 0; i < teams.length; i++) {
-        const availableRole = Object.keys(teams[i].roles).find(
-          (role) => teams[i].roles[role] > 0
-        );
-        if (availableRole) {
-          student.role = availableRole;
-          teams[i].members.push(student);
-          teams[i].roles[availableRole]--;
-          break;
-        }
-      }
-    });
-
-  // Final pass: Distribute any unassigned students
-  const unassignedStudents = students.filter(
-    (student) => !teams.some((team) => team.members.includes(student))
-  );
+  // Second pass: Assign remaining students to their second preference
+  const stillUnassignedStudents: student[] = [];
   unassignedStudents.forEach((student) => {
-    const teamIndex = teams.reduce(
-      (minIndex, team, index, arr) =>
-        team.members.length < arr[minIndex].members.length ? index : minIndex,
-      0
-    );
-    teams[teamIndex].members.push(student);
+    const secondPreference = student.preferences?.[1];
+    if (secondPreference) {
+      const teamIndex = teams.findIndex(
+        (team) => (team.roles[secondPreference] ?? 0) > 0
+      );
+      if (teamIndex !== -1) {
+        student.role = secondPreference;
+        teams[teamIndex].members.push(student);
+        teams[teamIndex].roles[secondPreference]--;
+      } else {
+        stillUnassignedStudents.push(student);
+      }
+    } else {
+      // No second preference available — keep student in unassigned list for final distribution
+      stillUnassignedStudents.push(student);
+    }
   });
+
+  // Final pass: Distribute any unassigned students to any available slot
+  stillUnassignedStudents.forEach((student) => {
+    let assigned = false;
+    for (let i = 0; i < teams.length; i++) {
+      const availableRole = Object.keys(teams[i].roles).find(
+        (role) => teams[i].roles[role] > 0
+      );
+      if (availableRole) {
+        student.role = availableRole;
+        teams[i].members.push(student);
+        teams[i].roles[availableRole]--;
+        assigned = true;
+        break;
+      }
+    }
+    if (!assigned) {
+      // If no roles are available, add to the smallest team
+      const teamIndex = teams.reduce(
+        (minIndex, team, index, arr) =>
+          team.members.length < arr[minIndex].members.length ? index : minIndex,
+        0
+      );
+      teams[teamIndex].members.push(student);
+    }
+  });
+
   return teams;
 }
 
-function displayResults(teams) {
+function displayResults(teams: Team[]) {
+  if (!resultsDiv) {
+    console.error("No results container found");
+    return;
+  }
   resultsDiv.innerHTML = "<h3>Grouped Teams:</h3>";
   teams.forEach((team, index) => {
     const teamDiv = document.createElement("div");
@@ -158,20 +198,21 @@ function displayResults(teams) {
     const ul = document.createElement("ul");
 
     // Group members by role
-    const roleGroups = team.members.reduce((groups, member) => {
-      if (!groups[member.role]) {
-        groups[member.role] = [];
+    const roleGroups = team.members.reduce((groups: Record<string, student[]>, member) => {
+      const role = member.role || 'Unassigned';
+      if (!groups[role]) {
+        groups[role] = [];
       }
-      groups[member.role].push(member);
+      groups[role].push(member);
       return groups;
     }, {});
 
     // Display members grouped by role
     Object.entries(roleGroups).forEach(([role, members]) => {
       const roleLi = document.createElement("li");
-      roleLi.innerHTML = `<strong>${role} (${members.length}):</strong>`;
+      roleLi.innerHTML = `<strong>${role} (${(members as student[]).length}):</strong>`;
       const memberUl = document.createElement("ul");
-      members.forEach((student) => {
+      (members as student[]).forEach((student) => {
         const memberLi = document.createElement("li");
         const propertyInfo = selectedProperties
           .map((prop) => `${prop}: ${student[prop]}`)
@@ -282,13 +323,15 @@ if (csvFileInput)
 
 if (convertButton) {
   convertButton.addEventListener("click", () => {
-    studentsData = csvToJSON(csvContent);
+    studentsData = csvToJSON(csvContent) as student[];
     jsonOutputPre?.setAttribute("style", "height: 500px; overflow: auto");
-    jsonOutputPre.textContent = JSON.stringify(studentsData, null, 2);
+    if (jsonOutputPre) {
+      jsonOutputPre.textContent = JSON.stringify(studentsData, null, 2);
+    }
     createPropertyCheckboxes();
-    matchButton.disabled = false;
-    copyJsonButton.disabled = false;
-    reshuffleButton.disabled = false;
+    if (matchButton) (matchButton as HTMLButtonElement).disabled = false;
+    if (copyJsonButton) (copyJsonButton as HTMLButtonElement).disabled = false;
+    if (reshuffleButton) (reshuffleButton as HTMLButtonElement).disabled = false;
   });
 }
 
@@ -326,9 +369,14 @@ if (matchButton)
       return;
     }
 
+    if (!propertySelectionDiv || !roleSpecificationDiv) {
+      alert("Required elements not found.");
+      return;
+    }
+
     selectedProperties = Array.from(
       propertySelectionDiv.querySelectorAll('input[type="checkbox"]:checked')
-    ).map((cb) => cb.value);
+    ).map((cb) => (cb as HTMLInputElement).value);
     if (selectedProperties.length === 0) {
       alert("Please select at least one property for grouping.");
       return;
@@ -338,8 +386,8 @@ if (matchButton)
       roleSpecificationDiv.querySelectorAll(".role-input")
     )
       .map((input) => ({
-        role: input.querySelector("select").value,
-        count: parseInt(input.querySelector('input[type="number"]').value, 10),
+        role: (input.querySelector("select") as HTMLSelectElement).value,
+        count: parseInt((input.querySelector('input[type="number"]') as HTMLInputElement).value, 10),
       }))
       .filter((req) => req.role && !isNaN(req.count));
 
@@ -350,19 +398,29 @@ if (matchButton)
 
     const teams = groupStudents(studentsData, roleRequirements);
     displayResults(teams);
-    reshuffleButton.disabled = false;
+    if (reshuffleButton) reshuffleButton.disabled = false;
   });
 
-reshuffleButton.addEventListener("click", () => {
+reshuffleButton?.addEventListener("click", () => {
   const reshuffledData = shuffleArray(studentsData);
-  jsonOutputPre?.setAttribute("style", "height: 500px; overflow: auto");
-  jsonOutputPre.textContent = JSON.stringify(reshuffledData, null, 2);
+  if (jsonOutputPre) {
+    jsonOutputPre.setAttribute("style", "height: 500px; overflow: auto");
+    jsonOutputPre.textContent = JSON.stringify(reshuffledData, null, 2);
+  } else {
+    console.warn("jsonOutputPre element not found; cannot display reshuffled JSON.");
+  }
 });
 
 // Bring the next card into the center of the viewport when the current card is clicked.
 const steps = document.querySelectorAll(".row-grid .step");
 
-function activateStep({ currentStep, currentIndex, direction }) {
+function activateStep({
+  currentIndex,
+  direction,
+}: {
+  currentIndex: number;
+  direction: "next" | "prev";
+}) {
   // Remove 'active' from all steps
   steps.forEach((c) => c.classList.remove("active"));
 
@@ -371,7 +429,7 @@ function activateStep({ currentStep, currentIndex, direction }) {
     direction === "next"
       ? (currentIndex + 1) % steps.length
       : (currentIndex - 1 + steps.length) % steps.length;
-  const nextStep = steps[nextIndex];
+  const nextStep = steps[nextIndex] as Element;
 
   // Center the next card in the scroll container
   nextStep.scrollIntoView({
@@ -380,27 +438,36 @@ function activateStep({ currentStep, currentIndex, direction }) {
     block: "nearest",
   });
   nextStep.classList.add("active");
+
+  // Update prev/next button visibility and disabled state
+  const prevBtn = document.getElementById("prevButton");
+  const nextBtn = document.getElementById("nextButton");
+
   if (nextIndex === 0) {
-    document.getElementById("prevButton")?.classList.add("invisible");
-    document.getElementById("prevButton")?.setAttribute("disabled", "true");
+    prevBtn?.classList.add("invisible");
+    prevBtn?.setAttribute("disabled", "true");
   } else {
-    document.getElementById("prevButton")?.classList.remove("invisible");
-    document.getElementById("prevButton")?.removeAttribute("disabled");
+    prevBtn?.classList.remove("invisible");
+    prevBtn?.removeAttribute("disabled");
   }
+
   if (nextIndex === steps.length - 1) {
-    document.getElementById("nextButton")?.classList.add("invisible");
-    document.getElementById("nextButton")?.setAttribute("disabled", "true");
+    nextBtn?.classList.add("invisible");
+    nextBtn?.setAttribute("disabled", "true");
   } else {
-    document.getElementById("nextButton")?.classList.remove("invisible");
-    document.getElementById("nextButton")?.removeAttribute("disabled");
+    nextBtn?.classList.remove("invisible");
+    nextBtn?.removeAttribute("disabled");
   }
 }
 
+// Attach navigation event listeners outside of activateStep and ensure activeStep is non-null before use.
 document.getElementById("nextButton")?.addEventListener("click", () => {
   const activeStep = document.querySelector(".row-grid .step.active");
   if (activeStep) {
     const currentIndex = Array.from(steps).indexOf(activeStep);
-    activateStep({ currentStep: activeStep, currentIndex, direction: "next" });
+    if (currentIndex !== -1) {
+      activateStep({ currentIndex, direction: "next" });
+    }
   }
 });
 
@@ -409,7 +476,7 @@ document.getElementById("prevButton")?.addEventListener("click", () => {
   if (activeStep) {
     const currentIndex = Array.from(steps).indexOf(activeStep);
     if (currentIndex > 0) {
-      activateStep({ currentStep: activeStep, currentIndex, direction: "prev" });
+      activateStep({ currentIndex, direction: "prev" });
     }
   }
 });
